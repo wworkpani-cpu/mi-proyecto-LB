@@ -128,7 +128,7 @@ try{db=JSON.parse(localStorage.getItem(K))}catch(e){}
 if(!db||!db.p){db=JSON.parse(JSON.stringify(SEED))}
 var cart=[];
 /* Pega aquí el link de tu Apps Script (termina en /exec). Si lo dejas vacío, el sistema guarda solo en este navegador. */
-var URL_SHEETS="";
+var URL_SHEETS="https://script.google.com/macros/s/AKfycbwUYvz_xZ4y_Cz2AA3nJ7DPFfqvshDBOOrN1e-Xbv9QQ0SzgcCp-8gjLEEX2u5YUISh/exec";
 var OK="#7ee2a0",MAL="#ffb4ab";
 function est(t,c){var e=$("#est");e.textContent=t;e.style.color=c||""}
 var q=Promise.resolve(),timer=null;
