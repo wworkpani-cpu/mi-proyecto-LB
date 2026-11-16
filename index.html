@@ -14,6 +14,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 "Segoe UI",sy
 header{background:var(--steel);color:#fff;padding:18px 16px 14px;border-bottom:8px solid transparent;border-image:repeating-linear-gradient(135deg,var(--yel) 0 14px,#111 14px 28px) 8}
 header h1{margin:0;font-size:1.5rem;letter-spacing:.01em}
 header p{margin:2px 0 0;color:#c4cfd7;font-size:.92rem}
+#est{font-weight:600}
 nav{display:flex;gap:6px;padding:12px 16px 0;max-width:980px;margin:0 auto}
 nav button{flex:1;padding:11px 8px;border:2px solid var(--line);background:var(--card);color:var(--ink);font:inherit;font-weight:600;border-radius:8px;cursor:pointer}
 nav button[aria-selected="true"]{background:var(--yel);border-color:var(--yel);color:var(--yel-ink)}
@@ -50,6 +51,7 @@ tr.low td{background:var(--low)}
 <header>
   <h1>Ferretería · Control diario</h1>
   <p>Cobra, controla tu inventario y revisa cuánto vendiste hoy.</p>
+  <p id="est" role="status"></p>
 </header>
 <nav role="tablist">
   <button role="tab" aria-selected="true" data-t="venta">Vender</button>
@@ -125,7 +127,32 @@ var db=null;
 try{db=JSON.parse(localStorage.getItem(K))}catch(e){}
 if(!db||!db.p){db=JSON.parse(JSON.stringify(SEED))}
 var cart=[];
-function save(){try{localStorage.setItem(K,JSON.stringify(db))}catch(e){}}
+/* Pega aquí el link de tu Apps Script (termina en /exec). Si lo dejas vacío, el sistema guarda solo en este navegador. */
+var URL_SHEETS="";
+var OK="#7ee2a0",MAL="#ffb4ab";
+function est(t,c){var e=$("#est");e.textContent=t;e.style.color=c||""}
+var q=Promise.resolve(),timer=null;
+function saveLocal(){try{localStorage.setItem(K,JSON.stringify(db))}catch(e){}}
+function post(b){
+  if(!URL_SHEETS)return;
+  est("Guardando en Google Sheets…");
+  q=q.then(function(){return fetch(URL_SHEETS,{method:"POST",body:JSON.stringify(b)})})
+    .then(function(r){return r.json()})
+    .then(function(r){if(!r.ok)throw new Error(r.error);est("Guardado en Google Sheets ✓",OK)})
+    .catch(function(){est("No se pudo guardar en Google Sheets. Los cambios quedaron solo en este aparato.",MAL)})}
+function save(){saveLocal();clearTimeout(timer);timer=setTimeout(function(){post({p:db.p})},500)}
+function saveSale(sale){saveLocal();clearTimeout(timer);post({p:db.p,sale:sale})}
+function cargar(){
+  if(!URL_SHEETS){est("Modo prueba: los datos se guardan solo en este navegador.");return}
+  est("Conectando con Google Sheets…");
+  fetch(URL_SHEETS).then(function(r){return r.json()}).then(function(r){
+    if(!r.ok)throw new Error(r.error);
+    est("Conectado a Google Sheets ✓",OK);
+    if(!r.p.length&&!r.s.length){post({p:db.p});return}
+    db.p=r.p;db.s=r.s;
+    db.next=1+db.p.reduce(function(m,x){return Math.max(m,x.id)},0);
+    saveLocal();render()
+  }).catch(function(){est("Sin conexión con Google Sheets. Usando los datos de este aparato.",MAL)})}
 function $(s){return document.querySelector(s)}
 function money(n){return "C$ "+Number(n).toLocaleString("es-NI",{minimumFractionDigits:2,maximumFractionDigits:2})}
 function el(t,x,c){var e=document.createElement(t);if(x!=null)e.textContent=x;if(c)e.className=c;return e}
@@ -166,7 +193,7 @@ $("#vc").onclick=function(){
   if(!cart.length){toast("Agrega al menos un producto.");return}
   var items=[],tot=0;
   cart.forEach(function(c){var p=prod(c.id);p.s-=c.q;tot+=p.p*c.q;items.push({n:p.n,q:c.q,p:p.p})});
-  db.s.push({d:new Date().toISOString(),items:items,t:tot});save();cart=[];renderVenta();
+  var sale={d:new Date().toISOString(),items:items,t:tot};db.s.push(sale);saveSale(sale);cart=[];renderVenta();
   toast("Venta cobrada: "+money(tot))};
 
 /* Inventario */
@@ -209,10 +236,10 @@ function renderRep(){
   var tl=$("#rl");head(tl,[["Producto"],["Existencia","n"],["Mínimo","n"]]);
   if(!low.length)emptyRow(tl,3,"Todo el inventario está en buen nivel.");
   low.forEach(function(p){var tr=el("tr");tr.className="low";tr.appendChild(el("td",p.n));tr.appendChild(el("td",p.s,"n"));tr.appendChild(el("td",p.m,"n"));tl.appendChild(tr)})}
-$("#rr").onclick=function(){if(confirm("Esto borra tus datos y vuelve a los de ejemplo. ¿Continuar?")){db=JSON.parse(JSON.stringify(SEED));cart=[];save();render();toast("Datos restablecidos.")}};
+$("#rr").onclick=function(){if(confirm("Esto borra tus datos y vuelve a los de ejemplo. ¿Continuar?")){db=JSON.parse(JSON.stringify(SEED));cart=[];saveLocal();post({p:db.p,clearSales:true});render();toast("Datos restablecidos.")}};
 
 function render(){renderVenta();renderInv();renderRep()}
-render();
+render();cargar();
 </script>
 </body>
 </html>
