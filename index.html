@@ -1,90 +1,367 @@
-// Pega este código en Extensiones > Apps Script de tu hoja de Google.
-var HOJA_PRODUCTOS = "Productos";
-var HOJA_VENTAS = "Ventas";
-
-function hoja_(nombre, titulos) {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sh = ss.getSheetByName(nombre);
-  if (!sh) {
-    sh = ss.insertSheet(nombre);
-    sh.appendRow(titulos);
-    sh.setFrozenRows(1);
-    sh.getRange(1, 1, 1, titulos.length).setFontWeight("bold").setBackground("#f5b700");
-    if (nombre === HOJA_VENTAS) sh.getRange("A:A").setNumberFormat("@");
-  }
-  return sh;
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ferretería · Control de ventas e inventario</title>
+<style>
+:root{--bg:#eceff1;--card:#fff;--ink:#1d2730;--mut:#5d6b77;--line:#d5dbe0;--steel:#26343f;--yel:#f5b700;--yel-ink:#1d2730;--low:#fff1c2;--low-ink:#7a4b00;--ok:#1b6b3a;--bad:#b3261e;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12181d;--card:#1b242b;--ink:#e8edf0;--mut:#9aa8b3;--line:#2f3c46;--steel:#0d1317;--low:#3a2e0a;--low-ink:#ffd166;--ok:#5fd38a;--bad:#ff8a80;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#12181d;--card:#1b242b;--ink:#e8edf0;--mut:#9aa8b3;--line:#2f3c46;--steel:#0d1317;--low:#3a2e0a;--low-ink:#ffd166;--ok:#5fd38a;--bad:#ff8a80;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 "Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif}
+header{background:var(--steel);color:#fff;padding:18px 16px 14px;border-bottom:8px solid transparent;border-image:repeating-linear-gradient(135deg,var(--yel) 0 14px,#111 14px 28px) 8}
+header h1{margin:0;font-size:1.5rem;letter-spacing:.01em}
+header p{margin:2px 0 0;color:#c4cfd7;font-size:.92rem}
+#est{font-weight:600}
+.cab{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.cab img{height:62px;max-width:55%;object-fit:contain;background:#fff;border-radius:6px}
+.cab .r{display:flex;gap:8px;align-items:end;flex-wrap:wrap}
+.cab .r label{font-size:.85rem;color:var(--mut);display:flex;flex-direction:column;gap:3px}
+.cab input{width:150px}
+.ti{font-size:1.3rem;font-weight:800;margin:0 0 8px}
+.g2{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;margin-bottom:12px}
+.g2 label,.fm label{display:flex;flex-direction:column;gap:3px;font-size:.85rem;color:var(--mut)}
+#cq input{min-width:64px;padding:7px}
+#cq td:nth-child(2) input{min-width:230px}
+.tots{margin:12px 0 0 auto;max-width:320px}
+.tots div{display:flex;justify-content:space-between;padding:4px 0}
+.tots .gt{font-size:1.25rem;font-weight:800;border-top:2px solid var(--yel);margin-top:4px}
+.box{background:var(--low);color:var(--low-ink);border-radius:8px;padding:10px;margin:12px 0;font-size:.9rem}
+textarea{font:inherit;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);width:100%;min-height:78px;resize:vertical}
+.fm{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;margin-top:10px}
+@page{margin:14mm}
+@media print{
+header,nav,.noprint,.int,#est,#toast,#venta,#inv,#rep{display:none!important}
+body,.card{background:#fff!important;color:#000!important}
+main{padding:0}.card{border:0;padding:0}
+input,textarea{border:0!important;background:transparent!important;color:#000!important;padding:2px!important;min-height:0}
+label,th,td,span,b,.ti{color:#000!important}
+th,td{border-color:#999}
+#hoja .tw{overflow:visible}
+.vacia{display:none}
+textarea{resize:none}
+.cab img{background:none}
 }
-function productos_() { return hoja_(HOJA_PRODUCTOS, ["ID", "Producto", "Precio", "Existencia", "Mínimo"]); }
-function cotizaciones_() { return hoja_("Cotizaciones", ["Número", "Fecha", "Cliente", "Total", "Datos"]); }
-function ventas_() { return hoja_(HOJA_VENTAS, ["Fecha", "Detalle", "Total", "Items"]); }
+nav{display:flex;gap:6px;padding:12px 16px 0;max-width:980px;margin:0 auto}
+nav button{flex:1;padding:11px 8px;border:2px solid var(--line);background:var(--card);color:var(--ink);font:inherit;font-weight:600;border-radius:8px;cursor:pointer}
+nav button[aria-selected="true"]{background:var(--yel);border-color:var(--yel);color:var(--yel-ink)}
+main{max-width:980px;margin:0 auto;padding:12px 16px 40px}
+section[hidden]{display:none}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:14px}
+h2{margin:0 0 10px;font-size:1.15rem}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:end}
+.row>label{display:flex;flex-direction:column;gap:3px;font-size:.88rem;color:var(--mut);flex:1 1 120px}
+input,select{font:inherit;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);width:100%;min-width:0}
+button.b{font:inherit;font-weight:700;padding:10px 16px;border:0;border-radius:8px;background:var(--yel);color:var(--yel-ink);cursor:pointer}
+button.g{font:inherit;padding:6px 10px;border:1px solid var(--line);border-radius:6px;background:transparent;color:var(--ink);cursor:pointer}
+button.d{color:var(--bad)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--yel);outline-offset:1px}
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.95rem}
+th,td{text-align:left;padding:9px 6px;border-bottom:1px solid var(--line);white-space:nowrap}
+th{color:var(--mut);font-weight:600;font-size:.85rem}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+tr.low td{background:var(--low)}
+.tag{display:inline-block;padding:2px 8px;border-radius:99px;background:var(--yel);color:var(--yel-ink);font-size:.78rem;font-weight:700}
+.ticket{font-family:ui-monospace,Consolas,"Courier New",monospace;border:2px dashed var(--line)}
+.total{display:flex;justify-content:space-between;align-items:center;margin-top:12px;font-size:1.5rem;font-weight:800}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-bottom:14px}
+.stat{background:var(--card);border:1px solid var(--line);border-left:6px solid var(--yel);border-radius:10px;padding:12px}
+.stat b{display:block;font-size:1.6rem}
+.stat span{color:var(--mut);font-size:.9rem}
+.empty{color:var(--mut);padding:8px 0}
+#toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--steel);color:#fff;padding:12px 18px;border-radius:8px;opacity:0;pointer-events:none;transition:opacity .2s;max-width:90%;text-align:center}
+#toast.on{opacity:1}
+</style>
+</head>
+<body>
+<header>
+  <h1>Ferretería · Control diario</h1>
+  <p>Cobra, controla tu inventario y revisa cuánto vendiste hoy.</p>
+  <p id="est" role="status"></p>
+</header>
+<nav role="tablist">
+  <button role="tab" aria-selected="true" data-t="venta">Vender</button>
+  <button role="tab" aria-selected="false" data-t="inv">Inventario</button>
+  <button role="tab" aria-selected="false" data-t="cot">Cotizar</button>
+  <button role="tab" aria-selected="false" data-t="rep">Reporte</button>
+</nav>
+<main>
+<section id="venta">
+  <div class="card">
+    <h2>Agregar producto a la venta</h2>
+    <div class="row">
+      <label>Producto<select id="vp"></select></label>
+      <label style="flex:0 1 90px">Cantidad<input id="vq" type="number" min="1" value="1" inputmode="numeric"></label>
+      <button class="b" id="va">Agregar</button>
+    </div>
+  </div>
+  <div class="card ticket">
+    <h2>Venta actual</h2>
+    <div class="tw"><table id="vt"></table></div>
+    <div class="total"><span>Total</span><span id="vtot">C$ 0.00</span></div>
+    <div class="row" style="margin-top:12px">
+      <button class="b" id="vc">Cobrar venta</button>
+      <button class="g" id="vx">Vaciar</button>
+    </div>
+  </div>
+</section>
 
-function salida_(obj) {
-  return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
-}
+<section id="inv" hidden>
+  <div class="card">
+    <h2>Nuevo producto</h2>
+    <div class="row">
+      <label style="flex:2 1 180px">Nombre<input id="in" placeholder="Ej. Brocha 3 pulgadas"></label>
+      <label>Precio (C$)<input id="ip" type="number" min="0" step="0.01" inputmode="decimal"></label>
+      <label>Existencia<input id="is" type="number" min="0" inputmode="numeric"></label>
+      <label>Avisar si baja de<input id="im" type="number" min="0" value="5" inputmode="numeric"></label>
+      <button class="b" id="ia">Guardar producto</button>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Productos</h2>
+    <input id="iq" placeholder="Buscar producto" style="margin-bottom:10px">
+    <div class="tw"><table id="it"></table></div>
+  </div>
+</section>
 
-// Lee todo: se usa cuando se abre el sistema.
-function doGet() {
-  try {
-    var p = productos_().getDataRange().getValues().slice(1)
-      .filter(function (r) { return r[0] !== ""; })
-      .map(function (r) { return { id: +r[0], n: String(r[1]), p: +r[2], s: +r[3], m: +r[4] }; });
-    var s = ventas_().getDataRange().getValues().slice(1)
-      .filter(function (r) { return r[0] !== ""; })
-      .map(function (r) {
-        return {
-          d: (r[0] instanceof Date) ? r[0].toISOString() : String(r[0]),
-          t: +r[2],
-          items: JSON.parse(r[3] || "[]")
-        };
-      });
-    var q = cotizaciones_().getDataRange().getValues().slice(1)
-      .filter(function (r) { return r[0] !== ""; })
-      .map(function (r) { return JSON.parse(r[4] || "{}"); });
-    return salida_({ ok: true, p: p, s: s, q: q });
-  } catch (err) {
-    return salida_({ ok: false, error: String(err) });
-  }
-}
+<section id="cot" hidden>
+  <div class="card" id="hoja">
+    <div class="cab">
+      <img src="logo.png" alt="Logo de la ferretería" onerror="this.style.display='none'">
+      <div class="r"><label>No.<input id="cn" inputmode="numeric"></label><label>Fecha<input id="cf" type="date"></label></div>
+    </div>
+    <p class="ti">COTIZACIÓN</p>
+    <div class="g2">
+      <label>Cliente<input id="cc"></label><label>RUC<input id="cr"></label>
+      <label>Dirección<input id="cd"></label><label>Celular<input id="ct" inputmode="tel"></label>
+      <label>Con atención a<input id="ca"></label><label>Correo<input id="cm" type="email"></label>
+    </div>
+    <div class="tw"><table id="cq"></table></div>
+    <div class="row noprint" style="margin-top:10px"><button class="g" id="cl" type="button">+ Agregar línea</button>
+      <label style="flex:0 0 auto;flex-direction:row;align-items:center;gap:6px"><input id="ci" type="checkbox" style="width:auto"> Sumar IVA 15 %</label></div>
+    <div class="tots"><div><span>Sub total</span><b id="cs"></b></div><div id="cvr"><span>IVA 15 %</span><b id="cva"></b></div><div class="gt"><span>TOTAL</span><b id="ctt"></b></div></div>
+    <div class="box int" id="cint"></div>
+    <label style="display:block;margin-top:12px;font-size:.85rem;color:var(--mut)">Acuerdos comerciales<textarea id="cv"></textarea></label>
+    <div class="fm"><label>Elaborado por<input id="ce"></label><label>Aprobado por<input id="cp"></label></div>
+    <div class="fm"><label>Nota<input id="cx"></label></div>
+  </div>
+  <div class="row noprint" style="margin-bottom:14px"><button class="b" id="cgu" type="button">Guardar cotización</button><button class="g" id="cim" type="button">Imprimir / PDF</button><button class="g" id="cnu" type="button">Nueva cotización</button></div>
+  <div class="card noprint"><h2>Cotizaciones guardadas</h2><div class="tw"><table id="cg"></table></div></div>
+</section>
 
-// Guarda: productos, una venta nueva o borrar ventas.
-function doPost(e) {
-  var lock = LockService.getScriptLock();
-  lock.waitLock(20000);
-  try {
-    var b = JSON.parse(e.postData.contents);
-    if (b.p) {
-      var sp = productos_();
-      var ultima = sp.getLastRow();
-      if (ultima > 1) sp.getRange(2, 1, ultima - 1, 5).clearContent();
-      if (b.p.length) {
-        sp.getRange(2, 1, b.p.length, 5).setValues(
-          b.p.map(function (x) { return [x.id, x.n, x.p, x.s, x.m]; })
-        );
-      }
-    }
-    if (b.clearSales) {
-      var sv = ventas_();
-      var u = sv.getLastRow();
-      if (u > 1) sv.getRange(2, 1, u - 1, 4).clearContent();
-    }
-    if (b.sale) {
-      var detalle = b.sale.items.map(function (i) { return i.q + "x " + i.n; }).join("; ");
-      ventas_().appendRow([b.sale.d, detalle, b.sale.t, JSON.stringify(b.sale.items)]);
-    }
-    if (b.quote) {
-      var sc = cotizaciones_();
-      var vals = sc.getDataRange().getValues();
-      var fila = -1;
-      for (var i = 1; i < vals.length; i++) {
-        if (String(vals[i][0]) === String(b.quote.n)) { fila = i + 1; break; }
-      }
-      var reg = [b.quote.n, b.quote.d, b.quote.cli, b.quote.t, JSON.stringify(b.quote)];
-      if (fila > 0) sc.getRange(fila, 1, 1, 5).setValues([reg]); else sc.appendRow(reg);
-    }
-    return salida_({ ok: true });
-  } catch (err) {
-    return salida_({ ok: false, error: String(err) });
-  } finally {
-    lock.releaseLock();
-  }
-}
+<section id="rep" hidden>
+  <div class="grid" id="rs"></div>
+  <div class="card">
+    <h2>Ventas de hoy</h2>
+    <div class="tw"><table id="rt"></table></div>
+  </div>
+  <div class="card">
+    <h2>Por reponer</h2>
+    <div class="tw"><table id="rl"></table></div>
+  </div>
+  <button class="g" id="rr">Restablecer datos de ejemplo</button>
+</section>
+</main>
+<div id="toast" role="status"></div>
+
+<script src="config.js"></script>
+<script>
+var K="ferreteria_v1";
+var SEED={p:[
+{id:1,n:"Martillo 16 oz",p:185,s:12,m:4},
+{id:2,n:"Clavos 2 pulgadas (libra)",p:28,s:60,m:20},
+{id:3,n:"Cemento 42.5 kg",p:395,s:3,m:10},
+{id:4,n:"Tornillos 1 pulgada (caja)",p:95,s:18,m:6},
+{id:5,n:"Pintura blanca (galón)",p:640,s:7,m:3},
+{id:6,n:"Cinta métrica 5 m",p:120,s:9,m:3},
+{id:7,n:"Alambre de amarre (libra)",p:32,s:25,m:10},
+{id:8,n:"Candado 40 mm",p:150,s:2,m:4}],s:[],next:9};
+var db=null;
+try{db=JSON.parse(localStorage.getItem(K))}catch(e){}
+if(!db||!db.p){db=JSON.parse(JSON.stringify(SEED))}
+if(!db.q)db.q=[];
+var cart=[];
+/* Pega aquí el link de tu Apps Script (termina en /exec). Si lo dejas vacío, el sistema guarda solo en este navegador. */
+var URL_SHEETS=window.URL_SHEETS||"";
+var OK="#7ee2a0",MAL="#ffb4ab";
+function est(t,c){var e=$("#est");e.textContent=t;e.style.color=c||""}
+var q=Promise.resolve(),timer=null;
+function saveLocal(){try{localStorage.setItem(K,JSON.stringify(db))}catch(e){}}
+function post(b){
+  if(!URL_SHEETS)return;
+  est("Guardando en Google Sheets…");
+  q=q.then(function(){return fetch(URL_SHEETS,{method:"POST",body:JSON.stringify(b)})})
+    .then(function(r){return r.json()})
+    .then(function(r){if(!r.ok)throw new Error(r.error);est("Guardado en Google Sheets ✓",OK)})
+    .catch(function(){est("No se pudo guardar en Google Sheets. Los cambios quedaron solo en este aparato.",MAL)})}
+function save(){saveLocal();clearTimeout(timer);timer=setTimeout(function(){post({p:db.p})},500)}
+function saveSale(sale){saveLocal();clearTimeout(timer);post({p:db.p,sale:sale})}
+function cargar(){
+  if(!URL_SHEETS){est("Modo prueba: los datos se guardan solo en este navegador.");return}
+  est("Conectando con Google Sheets…");
+  fetch(URL_SHEETS).then(function(r){return r.json()}).then(function(r){
+    if(!r.ok)throw new Error(r.error);
+    est("Conectado a Google Sheets ✓",OK);
+    if(!r.p.length&&!r.s.length){post({p:db.p});return}
+    db.p=r.p;db.s=r.s;db.q=r.q||db.q;if(!cot.cli)nuevaCot();
+    db.next=1+db.p.reduce(function(m,x){return Math.max(m,x.id)},0);
+    saveLocal();render()
+  }).catch(function(){est("Sin conexión con Google Sheets. Usando los datos de este aparato.",MAL)})}
+function $(s){return document.querySelector(s)}
+function money(n){return "C$ "+Number(n).toLocaleString("es-NI",{minimumFractionDigits:2,maximumFractionDigits:2})}
+function el(t,x,c){var e=document.createElement(t);if(x!=null)e.textContent=x;if(c)e.className=c;return e}
+function toast(m){var t=$("#toast");t.textContent=m;t.className="on";clearTimeout(toast.h);toast.h=setTimeout(function(){t.className=""},2400)}
+function prod(id){for(var i=0;i<db.p.length;i++)if(db.p[i].id===id)return db.p[i]}
+function head(tb,cols){tb.textContent="";var tr=el("tr");cols.forEach(function(c){tr.appendChild(el("th",c[0],c[1]))});var th=el("thead");th.appendChild(tr);tb.appendChild(th)}
+function emptyRow(tb,span,msg){var tr=el("tr"),td=el("td",msg,"empty");td.colSpan=span;tr.appendChild(td);tb.appendChild(tr)}
+function btn(txt,cls,fn){var b=el("button",txt,"g "+(cls||""));b.type="button";b.onclick=fn;return b}
+
+/* Pestañas */
+document.querySelectorAll("nav button").forEach(function(b){b.onclick=function(){
+  document.querySelectorAll("nav button").forEach(function(x){x.setAttribute("aria-selected",x===b)});
+  ["venta","inv","cot","rep"].forEach(function(id){$("#"+id).hidden=(id!==b.dataset.t)});
+  render()}});
+
+/* Venta */
+function renderVenta(){
+  var sel=$("#vp"),cur=sel.value;sel.textContent="";
+  db.p.forEach(function(p){var o=el("option",p.n+" · "+money(p.p)+" ("+p.s+" disp.)");o.value=p.id;if(p.s<=0)o.disabled=true;sel.appendChild(o)});
+  if(cur)sel.value=cur;
+  var tb=$("#vt");head(tb,[["Producto"],["Cant.","n"],["Subtotal","n"],[""]]);
+  var tot=0;
+  if(!cart.length)emptyRow(tb,4,"Aún no hay productos. Elige uno y toca Agregar.");
+  cart.forEach(function(c,i){var p=prod(c.id),tr=el("tr");tot+=p.p*c.q;
+    tr.appendChild(el("td",p.n));tr.appendChild(el("td",c.q,"n"));tr.appendChild(el("td",money(p.p*c.q),"n"));
+    var td=el("td");td.appendChild(btn("Quitar","d",function(){cart.splice(i,1);renderVenta()}));tr.appendChild(td);tb.appendChild(tr)});
+  $("#vtot").textContent=money(tot)}
+$("#va").onclick=function(){
+  var id=+$("#vp").value,q=parseInt($("#vq").value,10),p=prod(id);
+  if(!p||!(q>0)){toast("Escribe una cantidad mayor que cero.");return}
+  var ya=0;cart.forEach(function(c){if(c.id===id)ya+=c.q});
+  if(ya+q>p.s){toast("Solo quedan "+p.s+" de "+p.n+".");return}
+  var f=cart.filter(function(c){return c.id===id})[0];
+  if(f)f.q+=q;else cart.push({id:id,q:q});
+  $("#vq").value=1;renderVenta()};
+$("#vx").onclick=function(){cart=[];renderVenta()};
+$("#vc").onclick=function(){
+  if(!cart.length){toast("Agrega al menos un producto.");return}
+  var items=[],tot=0;
+  cart.forEach(function(c){var p=prod(c.id);p.s-=c.q;tot+=p.p*c.q;items.push({n:p.n,q:c.q,p:p.p})});
+  var sale={d:new Date().toISOString(),items:items,t:tot};db.s.push(sale);saveSale(sale);cart=[];renderVenta();
+  toast("Venta cobrada: "+money(tot))};
+
+/* Inventario */
+function renderInv(){
+  var q=$("#iq").value.trim().toLowerCase(),tb=$("#it");
+  head(tb,[["Producto"],["Precio","n"],["Existencia","n"],["Estado"],[""]]);
+  var list=db.p.filter(function(p){return p.n.toLowerCase().indexOf(q)>-1});
+  if(!list.length)emptyRow(tb,5,"No hay productos con ese nombre.");
+  list.forEach(function(p){var tr=el("tr");if(p.s<=p.m)tr.className="low";
+    tr.appendChild(el("td",p.n));tr.appendChild(el("td",money(p.p),"n"));tr.appendChild(el("td",p.s,"n"));
+    var st=el("td");if(p.s<=0)st.appendChild(el("span","Agotado","tag"));else if(p.s<=p.m)st.appendChild(el("span","Por reponer","tag"));else st.textContent="Normal";tr.appendChild(st);
+    var ac=el("td");
+    ac.appendChild(btn("+1","",function(){p.s++;save();renderInv()}));
+    ac.appendChild(document.createTextNode(" "));
+    ac.appendChild(btn("−1","",function(){if(p.s>0){p.s--;save();renderInv()}}));
+    ac.appendChild(document.createTextNode(" "));
+    ac.appendChild(btn("Eliminar","d",function(){if(confirm("¿Eliminar "+p.n+"?")){db.p=db.p.filter(function(x){return x!==p});save();renderInv()}}));
+    tr.appendChild(ac);tb.appendChild(tr)})}
+$("#iq").oninput=renderInv;
+$("#ia").onclick=function(){
+  var n=$("#in").value.trim(),p=parseFloat($("#ip").value),s=parseInt($("#is").value,10),m=parseInt($("#im").value,10);
+  if(!n||!(p>=0)||!(s>=0)){toast("Completa nombre, precio y existencia.");return}
+  db.p.push({id:db.next++,n:n,p:p,s:s,m:isNaN(m)?0:m});save();
+  ["#in","#ip","#is"].forEach(function(i){$(i).value=""});renderInv();toast("Producto guardado.")};
+
+/* Reporte */
+function renderRep(){
+  var hoy=new Date().toDateString(),vs=db.s.filter(function(v){return new Date(v.d).toDateString()===hoy});
+  var tot=0;vs.forEach(function(v){tot+=v.t});
+  var low=db.p.filter(function(p){return p.s<=p.m});
+  var g=$("#rs");g.textContent="";
+  [[money(tot),"Vendido hoy"],[vs.length,"Ventas hoy"],[low.length,"Productos por reponer"]].forEach(function(s){
+    var d=el("div",null,"stat");d.appendChild(el("b",s[0]));d.appendChild(el("span",s[1]));g.appendChild(d)});
+  var tb=$("#rt");head(tb,[["Hora"],["Detalle"],["Total","n"]]);
+  if(!vs.length)emptyRow(tb,3,"Todavía no hay ventas hoy.");
+  vs.slice().reverse().forEach(function(v){var tr=el("tr");
+    tr.appendChild(el("td",new Date(v.d).toLocaleTimeString("es-NI",{hour:"2-digit",minute:"2-digit"})));
+    tr.appendChild(el("td",v.items.map(function(i){return i.q+"× "+i.n}).join(", ")));
+    tr.appendChild(el("td",money(v.t),"n"));tb.appendChild(tr)});
+  var tl=$("#rl");head(tl,[["Producto"],["Existencia","n"],["Mínimo","n"]]);
+  if(!low.length)emptyRow(tl,3,"Todo el inventario está en buen nivel.");
+  low.forEach(function(p){var tr=el("tr");tr.className="low";tr.appendChild(el("td",p.n));tr.appendChild(el("td",p.s,"n"));tr.appendChild(el("td",p.m,"n"));tl.appendChild(tr)})}
+$("#rr").onclick=function(){if(confirm("Esto borra tus datos y vuelve a los de ejemplo. ¿Continuar?")){var oq=db.q;db=JSON.parse(JSON.stringify(SEED));db.q=oq||[];cart=[];saveLocal();post({p:db.p,clearSales:true});render();toast("Datos restablecidos.")}};
+
+function render(){renderVenta();renderInv();renderRep();renderCotLista()}
+
+/* Cotizaciones */
+var cot={items:[]},cells=[];
+var F=[["cn","n"],["cf","d"],["cc","cli"],["cr","ruc"],["cd","dir"],["ct","tel"],["ca","att"],["cm","mail"],["cv","cond"],["ce","el"],["cp","ap"],["cx","nota"]];
+function hoy(){var d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
+function lin(){return{n:"",u:"UND",q:"",c:"",m:20}}
+function nuevaCot(){
+  var n=11220;db.q.forEach(function(x){n=Math.max(n,(+x.n||0)+1)});
+  cot={n:n,d:hoy(),cli:"",ruc:"",dir:"",tel:"",att:"",mail:"",items:[],iva:false,
+    cond:"Validez de la oferta por 5 días\nTiempo de entrega inmediato\nLugar de entrega bodegas FERRETERIA PANI",
+    nota:"NOTA: ESTE PRECIO NO INCLUYE TRANSPORTE",el:"",ap:""};
+  var l=db.q[db.q.length-1];if(l){cot.cond=l.cond;cot.nota=l.nota;cot.el=l.el;cot.ap=l.ap}
+  for(var i=0;i<5;i++)cot.items.push(lin());
+  pintaCot()}
+function celda(it,k,tipo){
+  var td=el("td"),i=el("input");i.type=tipo;if(tipo==="number"){i.step="any";i.min="0";i.inputMode="decimal"}
+  i.value=it[k];
+  i.oninput=function(){it[k]=tipo==="number"?(this.value===""?"":parseFloat(this.value)):this.value;calc()};
+  td.appendChild(i);return td}
+function pintaCot(){
+  F.forEach(function(f){$("#"+f[0]).value=cot[f[1]]});
+  $("#ci").checked=!!cot.iva;
+  var tb=$("#cq");cells=[];
+  head(tb,[["#"],["Descripción"],["Unid."],["Cant.","n"],["Precio","n"],["Total","n"],["P. compra","n int"],["Margen %","n int"],["Utilidad","n int"],[""]]);
+  cot.items.forEach(function(it,i){
+    var tr=el("tr"),k={};
+    tr.appendChild(el("td",i+1));
+    tr.appendChild(celda(it,"n","text"));tr.appendChild(celda(it,"u","text"));tr.appendChild(celda(it,"q","number"));
+    k.p=el("td",null,"n");k.t=el("td",null,"n");tr.appendChild(k.p);tr.appendChild(k.t);
+    var c=celda(it,"c","number"),m=celda(it,"m","number");c.className="int";m.className="int";
+    k.u=el("td",null,"n int");tr.appendChild(c);tr.appendChild(m);tr.appendChild(k.u);
+    var x=el("td");x.className="noprint";x.appendChild(btn("Quitar","d",function(){cot.items.splice(i,1);pintaCot()}));tr.appendChild(x);
+    k.tr=tr;cells.push(k);tb.appendChild(tr)});
+  calc()}
+function calc(){
+  var sub=0,cmp=0;
+  cot.items.forEach(function(it,i){
+    var q=+it.q||0,c=+it.c||0,m=+it.m||0,pv=c*(1+m/100),t=q*pv,k=cells[i];
+    k.tr.className=(it.n===""&&it.q===""&&it.c==="")?"vacia":"";k.p.textContent=c?money(pv):"";k.t.textContent=(q&&c)?money(t):"";k.u.textContent=(q&&c)?money(q*c*m/100):"";
+    sub+=t;cmp+=q*c});
+  var iva=cot.iva?sub*0.15:0,tot=sub+iva;
+  $("#cs").textContent=money(sub);$("#cva").textContent=money(iva);$("#cvr").hidden=!cot.iva;$("#ctt").textContent=money(tot);
+  $("#cint").textContent="Solo para ti (no se imprime) · Total de compra: "+money(cmp)+" · Utilidad: "+money(sub-cmp)+" · Margen sobre compra: "+(cmp?((sub-cmp)/cmp*100).toFixed(1):"0")+" %";
+  return{sub:sub,iva:iva,tot:tot}}
+F.forEach(function(f){$("#"+f[0]).oninput=function(){cot[f[1]]=this.value}});
+$("#ci").onchange=function(){cot.iva=this.checked;calc()};
+$("#cl").onclick=function(){cot.items.push(lin());pintaCot()};
+$("#cnu").onclick=function(){nuevaCot();window.scrollTo(0,0)};
+$("#cim").onclick=function(){var t=document.title;document.title="Cotización "+cot.n+" "+cot.cli;window.print();document.title=t};
+$("#cgu").onclick=function(){
+  if(!String(cot.cli).trim()){toast("Escribe el nombre del cliente.");return}
+  var its=cot.items.filter(function(i){return String(i.n).trim()||i.q!==""||i.c!==""});
+  if(!its.length){toast("Agrega al menos una línea.");return}
+  var c=JSON.parse(JSON.stringify(cot));c.items=its;c.t=calc().tot;
+  var k=-1;db.q.forEach(function(x,i){if(String(x.n)===String(c.n))k=i});
+  if(k>-1)db.q[k]=c;else db.q.push(c);
+  saveLocal();post({quote:c});renderCotLista();toast("Cotización "+c.n+" guardada.")};
+function renderCotLista(){
+  var tb=$("#cg");head(tb,[["No."],["Fecha"],["Cliente"],["Total","n"],[""]]);
+  if(!db.q.length)emptyRow(tb,5,"Aún no has guardado cotizaciones.");
+  db.q.slice().sort(function(a,b){return (+b.n||0)-(+a.n||0)}).forEach(function(c){
+    var tr=el("tr");tr.appendChild(el("td",c.n));tr.appendChild(el("td",c.d));tr.appendChild(el("td",c.cli));tr.appendChild(el("td",money(c.t||0),"n"));
+    var td=el("td");td.appendChild(btn("Abrir","",function(){cot=JSON.parse(JSON.stringify(c));while(cot.items.length<5)cot.items.push(lin());pintaCot();window.scrollTo(0,0)}));
+    tr.appendChild(td);tb.appendChild(tr)})}
+
+render();nuevaCot();cargar();
+</script>
+</body>
+</html>
