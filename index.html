@@ -1,245 +1,90 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Ferretería · Control de ventas e inventario</title>
-<style>
-:root{--bg:#eceff1;--card:#fff;--ink:#1d2730;--mut:#5d6b77;--line:#d5dbe0;--steel:#26343f;--yel:#f5b700;--yel-ink:#1d2730;--low:#fff1c2;--low-ink:#7a4b00;--ok:#1b6b3a;--bad:#b3261e;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12181d;--card:#1b242b;--ink:#e8edf0;--mut:#9aa8b3;--line:#2f3c46;--steel:#0d1317;--low:#3a2e0a;--low-ink:#ffd166;--ok:#5fd38a;--bad:#ff8a80;color-scheme:dark}}
-:root[data-theme="dark"]{--bg:#12181d;--card:#1b242b;--ink:#e8edf0;--mut:#9aa8b3;--line:#2f3c46;--steel:#0d1317;--low:#3a2e0a;--low-ink:#ffd166;--ok:#5fd38a;--bad:#ff8a80;color-scheme:dark}
-html{scroll-padding-top:env(safe-area-inset-top,0px)}
-*,*::before,*::after{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 "Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif}
-header{background:var(--steel);color:#fff;padding:18px 16px 14px;border-bottom:8px solid transparent;border-image:repeating-linear-gradient(135deg,var(--yel) 0 14px,#111 14px 28px) 8}
-header h1{margin:0;font-size:1.5rem;letter-spacing:.01em}
-header p{margin:2px 0 0;color:#c4cfd7;font-size:.92rem}
-#est{font-weight:600}
-nav{display:flex;gap:6px;padding:12px 16px 0;max-width:980px;margin:0 auto}
-nav button{flex:1;padding:11px 8px;border:2px solid var(--line);background:var(--card);color:var(--ink);font:inherit;font-weight:600;border-radius:8px;cursor:pointer}
-nav button[aria-selected="true"]{background:var(--yel);border-color:var(--yel);color:var(--yel-ink)}
-main{max-width:980px;margin:0 auto;padding:12px 16px 40px}
-section[hidden]{display:none}
-.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:14px}
-h2{margin:0 0 10px;font-size:1.15rem}
-.row{display:flex;gap:8px;flex-wrap:wrap;align-items:end}
-.row>label{display:flex;flex-direction:column;gap:3px;font-size:.88rem;color:var(--mut);flex:1 1 120px}
-input,select{font:inherit;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);width:100%;min-width:0}
-button.b{font:inherit;font-weight:700;padding:10px 16px;border:0;border-radius:8px;background:var(--yel);color:var(--yel-ink);cursor:pointer}
-button.g{font:inherit;padding:6px 10px;border:1px solid var(--line);border-radius:6px;background:transparent;color:var(--ink);cursor:pointer}
-button.d{color:var(--bad)}
-button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--yel);outline-offset:1px}
-.tw{overflow-x:auto}
-table{width:100%;border-collapse:collapse;font-size:.95rem}
-th,td{text-align:left;padding:9px 6px;border-bottom:1px solid var(--line);white-space:nowrap}
-th{color:var(--mut);font-weight:600;font-size:.85rem}
-td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
-tr.low td{background:var(--low)}
-.tag{display:inline-block;padding:2px 8px;border-radius:99px;background:var(--yel);color:var(--yel-ink);font-size:.78rem;font-weight:700}
-.ticket{font-family:ui-monospace,Consolas,"Courier New",monospace;border:2px dashed var(--line)}
-.total{display:flex;justify-content:space-between;align-items:center;margin-top:12px;font-size:1.5rem;font-weight:800}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-bottom:14px}
-.stat{background:var(--card);border:1px solid var(--line);border-left:6px solid var(--yel);border-radius:10px;padding:12px}
-.stat b{display:block;font-size:1.6rem}
-.stat span{color:var(--mut);font-size:.9rem}
-.empty{color:var(--mut);padding:8px 0}
-#toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--steel);color:#fff;padding:12px 18px;border-radius:8px;opacity:0;pointer-events:none;transition:opacity .2s;max-width:90%;text-align:center}
-#toast.on{opacity:1}
-</style>
-</head>
-<body>
-<header>
-  <h1>Ferretería · Control diario</h1>
-  <p>Cobra, controla tu inventario y revisa cuánto vendiste hoy.</p>
-  <p id="est" role="status"></p>
-</header>
-<nav role="tablist">
-  <button role="tab" aria-selected="true" data-t="venta">Vender</button>
-  <button role="tab" aria-selected="false" data-t="inv">Inventario</button>
-  <button role="tab" aria-selected="false" data-t="rep">Reporte</button>
-</nav>
-<main>
-<section id="venta">
-  <div class="card">
-    <h2>Agregar producto a la venta</h2>
-    <div class="row">
-      <label>Producto<select id="vp"></select></label>
-      <label style="flex:0 1 90px">Cantidad<input id="vq" type="number" min="1" value="1" inputmode="numeric"></label>
-      <button class="b" id="va">Agregar</button>
-    </div>
-  </div>
-  <div class="card ticket">
-    <h2>Venta actual</h2>
-    <div class="tw"><table id="vt"></table></div>
-    <div class="total"><span>Total</span><span id="vtot">C$ 0.00</span></div>
-    <div class="row" style="margin-top:12px">
-      <button class="b" id="vc">Cobrar venta</button>
-      <button class="g" id="vx">Vaciar</button>
-    </div>
-  </div>
-</section>
+// Pega este código en Extensiones > Apps Script de tu hoja de Google.
+var HOJA_PRODUCTOS = "Productos";
+var HOJA_VENTAS = "Ventas";
 
-<section id="inv" hidden>
-  <div class="card">
-    <h2>Nuevo producto</h2>
-    <div class="row">
-      <label style="flex:2 1 180px">Nombre<input id="in" placeholder="Ej. Brocha 3 pulgadas"></label>
-      <label>Precio (C$)<input id="ip" type="number" min="0" step="0.01" inputmode="decimal"></label>
-      <label>Existencia<input id="is" type="number" min="0" inputmode="numeric"></label>
-      <label>Avisar si baja de<input id="im" type="number" min="0" value="5" inputmode="numeric"></label>
-      <button class="b" id="ia">Guardar producto</button>
-    </div>
-  </div>
-  <div class="card">
-    <h2>Productos</h2>
-    <input id="iq" placeholder="Buscar producto" style="margin-bottom:10px">
-    <div class="tw"><table id="it"></table></div>
-  </div>
-</section>
+function hoja_(nombre, titulos) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName(nombre);
+  if (!sh) {
+    sh = ss.insertSheet(nombre);
+    sh.appendRow(titulos);
+    sh.setFrozenRows(1);
+    sh.getRange(1, 1, 1, titulos.length).setFontWeight("bold").setBackground("#f5b700");
+    if (nombre === HOJA_VENTAS) sh.getRange("A:A").setNumberFormat("@");
+  }
+  return sh;
+}
+function productos_() { return hoja_(HOJA_PRODUCTOS, ["ID", "Producto", "Precio", "Existencia", "Mínimo"]); }
+function cotizaciones_() { return hoja_("Cotizaciones", ["Número", "Fecha", "Cliente", "Total", "Datos"]); }
+function ventas_() { return hoja_(HOJA_VENTAS, ["Fecha", "Detalle", "Total", "Items"]); }
 
-<section id="rep" hidden>
-  <div class="grid" id="rs"></div>
-  <div class="card">
-    <h2>Ventas de hoy</h2>
-    <div class="tw"><table id="rt"></table></div>
-  </div>
-  <div class="card">
-    <h2>Por reponer</h2>
-    <div class="tw"><table id="rl"></table></div>
-  </div>
-  <button class="g" id="rr">Restablecer datos de ejemplo</button>
-</section>
-</main>
-<div id="toast" role="status"></div>
+function salida_(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
+}
 
-<script>
-var K="ferreteria_v1";
-var SEED={p:[
-{id:1,n:"Martillo 16 oz",p:185,s:12,m:4},
-{id:2,n:"Clavos 2 pulgadas (libra)",p:28,s:60,m:20},
-{id:3,n:"Cemento 42.5 kg",p:395,s:3,m:10},
-{id:4,n:"Tornillos 1 pulgada (caja)",p:95,s:18,m:6},
-{id:5,n:"Pintura blanca (galón)",p:640,s:7,m:3},
-{id:6,n:"Cinta métrica 5 m",p:120,s:9,m:3},
-{id:7,n:"Alambre de amarre (libra)",p:32,s:25,m:10},
-{id:8,n:"Candado 40 mm",p:150,s:2,m:4}],s:[],next:9};
-var db=null;
-try{db=JSON.parse(localStorage.getItem(K))}catch(e){}
-if(!db||!db.p){db=JSON.parse(JSON.stringify(SEED))}
-var cart=[];
-/* Pega aquí el link de tu Apps Script (termina en /exec). Si lo dejas vacío, el sistema guarda solo en este navegador. */
-var URL_SHEETS="https://script.google.com/macros/s/AKfycbwUYvz_xZ4y_Cz2AA3nJ7DPFfqvshDBOOrN1e-Xbv9QQ0SzgcCp-8gjLEEX2u5YUISh/exec";
-var OK="#7ee2a0",MAL="#ffb4ab";
-function est(t,c){var e=$("#est");e.textContent=t;e.style.color=c||""}
-var q=Promise.resolve(),timer=null;
-function saveLocal(){try{localStorage.setItem(K,JSON.stringify(db))}catch(e){}}
-function post(b){
-  if(!URL_SHEETS)return;
-  est("Guardando en Google Sheets…");
-  q=q.then(function(){return fetch(URL_SHEETS,{method:"POST",body:JSON.stringify(b)})})
-    .then(function(r){return r.json()})
-    .then(function(r){if(!r.ok)throw new Error(r.error);est("Guardado en Google Sheets ✓",OK)})
-    .catch(function(){est("No se pudo guardar en Google Sheets. Los cambios quedaron solo en este aparato.",MAL)})}
-function save(){saveLocal();clearTimeout(timer);timer=setTimeout(function(){post({p:db.p})},500)}
-function saveSale(sale){saveLocal();clearTimeout(timer);post({p:db.p,sale:sale})}
-function cargar(){
-  if(!URL_SHEETS){est("Modo prueba: los datos se guardan solo en este navegador.");return}
-  est("Conectando con Google Sheets…");
-  fetch(URL_SHEETS).then(function(r){return r.json()}).then(function(r){
-    if(!r.ok)throw new Error(r.error);
-    est("Conectado a Google Sheets ✓",OK);
-    if(!r.p.length&&!r.s.length){post({p:db.p});return}
-    db.p=r.p;db.s=r.s;
-    db.next=1+db.p.reduce(function(m,x){return Math.max(m,x.id)},0);
-    saveLocal();render()
-  }).catch(function(){est("Sin conexión con Google Sheets. Usando los datos de este aparato.",MAL)})}
-function $(s){return document.querySelector(s)}
-function money(n){return "C$ "+Number(n).toLocaleString("es-NI",{minimumFractionDigits:2,maximumFractionDigits:2})}
-function el(t,x,c){var e=document.createElement(t);if(x!=null)e.textContent=x;if(c)e.className=c;return e}
-function toast(m){var t=$("#toast");t.textContent=m;t.className="on";clearTimeout(toast.h);toast.h=setTimeout(function(){t.className=""},2400)}
-function prod(id){for(var i=0;i<db.p.length;i++)if(db.p[i].id===id)return db.p[i]}
-function head(tb,cols){tb.textContent="";var tr=el("tr");cols.forEach(function(c){tr.appendChild(el("th",c[0],c[1]))});var th=el("thead");th.appendChild(tr);tb.appendChild(th)}
-function emptyRow(tb,span,msg){var tr=el("tr"),td=el("td",msg,"empty");td.colSpan=span;tr.appendChild(td);tb.appendChild(tr)}
-function btn(txt,cls,fn){var b=el("button",txt,"g "+(cls||""));b.type="button";b.onclick=fn;return b}
+// Lee todo: se usa cuando se abre el sistema.
+function doGet() {
+  try {
+    var p = productos_().getDataRange().getValues().slice(1)
+      .filter(function (r) { return r[0] !== ""; })
+      .map(function (r) { return { id: +r[0], n: String(r[1]), p: +r[2], s: +r[3], m: +r[4] }; });
+    var s = ventas_().getDataRange().getValues().slice(1)
+      .filter(function (r) { return r[0] !== ""; })
+      .map(function (r) {
+        return {
+          d: (r[0] instanceof Date) ? r[0].toISOString() : String(r[0]),
+          t: +r[2],
+          items: JSON.parse(r[3] || "[]")
+        };
+      });
+    var q = cotizaciones_().getDataRange().getValues().slice(1)
+      .filter(function (r) { return r[0] !== ""; })
+      .map(function (r) { return JSON.parse(r[4] || "{}"); });
+    return salida_({ ok: true, p: p, s: s, q: q });
+  } catch (err) {
+    return salida_({ ok: false, error: String(err) });
+  }
+}
 
-/* Pestañas */
-document.querySelectorAll("nav button").forEach(function(b){b.onclick=function(){
-  document.querySelectorAll("nav button").forEach(function(x){x.setAttribute("aria-selected",x===b)});
-  ["venta","inv","rep"].forEach(function(id){$("#"+id).hidden=(id!==b.dataset.t)});
-  render()}});
-
-/* Venta */
-function renderVenta(){
-  var sel=$("#vp"),cur=sel.value;sel.textContent="";
-  db.p.forEach(function(p){var o=el("option",p.n+" · "+money(p.p)+" ("+p.s+" disp.)");o.value=p.id;if(p.s<=0)o.disabled=true;sel.appendChild(o)});
-  if(cur)sel.value=cur;
-  var tb=$("#vt");head(tb,[["Producto"],["Cant.","n"],["Subtotal","n"],[""]]);
-  var tot=0;
-  if(!cart.length)emptyRow(tb,4,"Aún no hay productos. Elige uno y toca Agregar.");
-  cart.forEach(function(c,i){var p=prod(c.id),tr=el("tr");tot+=p.p*c.q;
-    tr.appendChild(el("td",p.n));tr.appendChild(el("td",c.q,"n"));tr.appendChild(el("td",money(p.p*c.q),"n"));
-    var td=el("td");td.appendChild(btn("Quitar","d",function(){cart.splice(i,1);renderVenta()}));tr.appendChild(td);tb.appendChild(tr)});
-  $("#vtot").textContent=money(tot)}
-$("#va").onclick=function(){
-  var id=+$("#vp").value,q=parseInt($("#vq").value,10),p=prod(id);
-  if(!p||!(q>0)){toast("Escribe una cantidad mayor que cero.");return}
-  var ya=0;cart.forEach(function(c){if(c.id===id)ya+=c.q});
-  if(ya+q>p.s){toast("Solo quedan "+p.s+" de "+p.n+".");return}
-  var f=cart.filter(function(c){return c.id===id})[0];
-  if(f)f.q+=q;else cart.push({id:id,q:q});
-  $("#vq").value=1;renderVenta()};
-$("#vx").onclick=function(){cart=[];renderVenta()};
-$("#vc").onclick=function(){
-  if(!cart.length){toast("Agrega al menos un producto.");return}
-  var items=[],tot=0;
-  cart.forEach(function(c){var p=prod(c.id);p.s-=c.q;tot+=p.p*c.q;items.push({n:p.n,q:c.q,p:p.p})});
-  var sale={d:new Date().toISOString(),items:items,t:tot};db.s.push(sale);saveSale(sale);cart=[];renderVenta();
-  toast("Venta cobrada: "+money(tot))};
-
-/* Inventario */
-function renderInv(){
-  var q=$("#iq").value.trim().toLowerCase(),tb=$("#it");
-  head(tb,[["Producto"],["Precio","n"],["Existencia","n"],["Estado"],[""]]);
-  var list=db.p.filter(function(p){return p.n.toLowerCase().indexOf(q)>-1});
-  if(!list.length)emptyRow(tb,5,"No hay productos con ese nombre.");
-  list.forEach(function(p){var tr=el("tr");if(p.s<=p.m)tr.className="low";
-    tr.appendChild(el("td",p.n));tr.appendChild(el("td",money(p.p),"n"));tr.appendChild(el("td",p.s,"n"));
-    var st=el("td");if(p.s<=0)st.appendChild(el("span","Agotado","tag"));else if(p.s<=p.m)st.appendChild(el("span","Por reponer","tag"));else st.textContent="Normal";tr.appendChild(st);
-    var ac=el("td");
-    ac.appendChild(btn("+1","",function(){p.s++;save();renderInv()}));
-    ac.appendChild(document.createTextNode(" "));
-    ac.appendChild(btn("−1","",function(){if(p.s>0){p.s--;save();renderInv()}}));
-    ac.appendChild(document.createTextNode(" "));
-    ac.appendChild(btn("Eliminar","d",function(){if(confirm("¿Eliminar "+p.n+"?")){db.p=db.p.filter(function(x){return x!==p});save();renderInv()}}));
-    tr.appendChild(ac);tb.appendChild(tr)})}
-$("#iq").oninput=renderInv;
-$("#ia").onclick=function(){
-  var n=$("#in").value.trim(),p=parseFloat($("#ip").value),s=parseInt($("#is").value,10),m=parseInt($("#im").value,10);
-  if(!n||!(p>=0)||!(s>=0)){toast("Completa nombre, precio y existencia.");return}
-  db.p.push({id:db.next++,n:n,p:p,s:s,m:isNaN(m)?0:m});save();
-  ["#in","#ip","#is"].forEach(function(i){$(i).value=""});renderInv();toast("Producto guardado.")};
-
-/* Reporte */
-function renderRep(){
-  var hoy=new Date().toDateString(),vs=db.s.filter(function(v){return new Date(v.d).toDateString()===hoy});
-  var tot=0;vs.forEach(function(v){tot+=v.t});
-  var low=db.p.filter(function(p){return p.s<=p.m});
-  var g=$("#rs");g.textContent="";
-  [[money(tot),"Vendido hoy"],[vs.length,"Ventas hoy"],[low.length,"Productos por reponer"]].forEach(function(s){
-    var d=el("div",null,"stat");d.appendChild(el("b",s[0]));d.appendChild(el("span",s[1]));g.appendChild(d)});
-  var tb=$("#rt");head(tb,[["Hora"],["Detalle"],["Total","n"]]);
-  if(!vs.length)emptyRow(tb,3,"Todavía no hay ventas hoy.");
-  vs.slice().reverse().forEach(function(v){var tr=el("tr");
-    tr.appendChild(el("td",new Date(v.d).toLocaleTimeString("es-NI",{hour:"2-digit",minute:"2-digit"})));
-    tr.appendChild(el("td",v.items.map(function(i){return i.q+"× "+i.n}).join(", ")));
-    tr.appendChild(el("td",money(v.t),"n"));tb.appendChild(tr)});
-  var tl=$("#rl");head(tl,[["Producto"],["Existencia","n"],["Mínimo","n"]]);
-  if(!low.length)emptyRow(tl,3,"Todo el inventario está en buen nivel.");
-  low.forEach(function(p){var tr=el("tr");tr.className="low";tr.appendChild(el("td",p.n));tr.appendChild(el("td",p.s,"n"));tr.appendChild(el("td",p.m,"n"));tl.appendChild(tr)})}
-$("#rr").onclick=function(){if(confirm("Esto borra tus datos y vuelve a los de ejemplo. ¿Continuar?")){db=JSON.parse(JSON.stringify(SEED));cart=[];saveLocal();post({p:db.p,clearSales:true});render();toast("Datos restablecidos.")}};
-
-function render(){renderVenta();renderInv();renderRep()}
-render();cargar();
-</script>
-</body>
-</html>
+// Guarda: productos, una venta nueva o borrar ventas.
+function doPost(e) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var b = JSON.parse(e.postData.contents);
+    if (b.p) {
+      var sp = productos_();
+      var ultima = sp.getLastRow();
+      if (ultima > 1) sp.getRange(2, 1, ultima - 1, 5).clearContent();
+      if (b.p.length) {
+        sp.getRange(2, 1, b.p.length, 5).setValues(
+          b.p.map(function (x) { return [x.id, x.n, x.p, x.s, x.m]; })
+        );
+      }
+    }
+    if (b.clearSales) {
+      var sv = ventas_();
+      var u = sv.getLastRow();
+      if (u > 1) sv.getRange(2, 1, u - 1, 4).clearContent();
+    }
+    if (b.sale) {
+      var detalle = b.sale.items.map(function (i) { return i.q + "x " + i.n; }).join("; ");
+      ventas_().appendRow([b.sale.d, detalle, b.sale.t, JSON.stringify(b.sale.items)]);
+    }
+    if (b.quote) {
+      var sc = cotizaciones_();
+      var vals = sc.getDataRange().getValues();
+      var fila = -1;
+      for (var i = 1; i < vals.length; i++) {
+        if (String(vals[i][0]) === String(b.quote.n)) { fila = i + 1; break; }
+      }
+      var reg = [b.quote.n, b.quote.d, b.quote.cli, b.quote.t, JSON.stringify(b.quote)];
+      if (fila > 0) sc.getRange(fila, 1, 1, 5).setValues([reg]); else sc.appendRow(reg);
+    }
+    return salida_({ ok: true });
+  } catch (err) {
+    return salida_({ ok: false, error: String(err) });
+  } finally {
+    lock.releaseLock();
+  }
+}
